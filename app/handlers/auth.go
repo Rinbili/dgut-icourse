@@ -3,6 +3,7 @@ package handlers
 import (
 	"dgut-icourse/app/services"
 	"dgut-icourse/app/utils"
+	"dgut-icourse/ent"
 	"entgo.io/ent/privacy"
 	"github.com/gin-gonic/gin"
 )
@@ -35,21 +36,20 @@ func AuthHandler() gin.HandlerFunc {
 // @Description: 登录
 // @return gin.HandlerFunc:
 func LoginHandler() gin.HandlerFunc {
+	var code, openid, token string
+	var u *ent.User
+	resp := Response{0, "success", nil, nil}
 	return func(c *gin.Context) {
 		// 获取code
-		if code := c.Request.Header.Get("Authorization"); len(code) != 0 {
+		if code = c.Request.Header.Get("Authorization"); len(code) != 0 {
 			// 获取openid
-			if openid, err := utils.GetWechatUserInfo(code); err == nil {
+			if openid, resp.err = utils.GetWechatUserInfo(code); resp.err == nil {
 				// 获取或创建用户
-				if u, err := services.GetOrCreateUserByOpenID(c, openid); err == nil {
+				if u, resp.err = services.GetOrCreateUserByOpenID(c, openid); resp.err == nil {
 					// 生成token
-					if token, err := utils.GetToken(u.ID.String()); err == nil {
-						resp := Response{
-							Code: 0,
-							Msg:  "login success",
-							Data: gin.H{
-								"token": token,
-							},
+					if token, resp.err = utils.GetToken(u.ID.String()); resp.err == nil {
+						resp.Data = gin.H{
+							"token": token,
 						}
 						ResponseOK(c, resp)
 						return
@@ -57,9 +57,8 @@ func LoginHandler() gin.HandlerFunc {
 				}
 			}
 		}
-		ResponseUnauthorized(c, Response{
-			Code: 401,
-			Msg:  "login failed",
-		})
+		resp.Code = 40000
+		resp.Msg = "login failed. "
+		ResponseUnauthorized(c, resp)
 	}
 }

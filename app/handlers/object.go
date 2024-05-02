@@ -15,7 +15,6 @@ func CreateObjectHandler() gin.HandlerFunc {
 	var objResp *ent.Object
 	resp := Response{0, "success", nil, nil}
 	return func(c *gin.Context) {
-
 		// 获取字段
 		if resp.err = c.ShouldBindJSON(&objReq); resp.err != nil {
 			resp.Code = 10001

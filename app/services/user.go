@@ -4,6 +4,7 @@ import (
 	"context"
 	"dgut-icourse/ent"
 	"dgut-icourse/ent/user"
+	"fmt"
 	"github.com/google/uuid"
 )
 
@@ -35,5 +36,19 @@ func GetUserByUUID(ctx context.Context, uuidString string) (u *ent.User, err err
 		return nil, err
 	} else {
 		return Client.User.Get(ctx, uid)
+	}
+}
+
+// UpdateMe
+// @Description: 更新用户信息
+// @param ctx: context.Context
+// @param user: ent.User
+// @return *ent.User: 用户信息
+// @return error: err
+func UpdateMe(ctx context.Context, user ent.User) (u *ent.User, err error) {
+	if u = ctx.Value("user").(*ent.User); u == nil {
+		return nil, fmt.Errorf("invalid user")
+	} else {
+		return Client.User.UpdateOne(u).SetNickName(*user.NickName).SetIcon(*user.Icon).Save(ctx)
 	}
 }

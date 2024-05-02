@@ -13,6 +13,7 @@ func InitRouter(r *gin.Engine) {
 	// user路由组
 	user := r.Group("/user")
 	user.GET("/me", handlers.GetMe())
+	user.PUT("/me", handlers.UpdateMeHandler())
 	// object路由组
 	object := r.Group("/object")
 	object.GET("/:oid", handlers.GetObjectHandler())
