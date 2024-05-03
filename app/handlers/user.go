@@ -35,10 +35,10 @@ func GetMe() gin.HandlerFunc {
 // @Description: 更新当前用户信息
 // @return gin.HandlerFunc:
 func UpdateMeHandler() gin.HandlerFunc {
-	var userReq ent.User
-	var userResp *ent.User
-	resp := Response{0, "success", nil, nil}
 	return func(c *gin.Context) {
+		var userReq ent.User
+		var userResp *ent.User
+		resp := Response{0, "success", nil, nil}
 		if resp.err = c.ShouldBindJSON(&userReq); resp.err != nil {
 			resp.Code = 10001
 			resp.Msg = "invalid json"

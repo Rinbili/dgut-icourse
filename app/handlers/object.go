@@ -11,10 +11,10 @@ import (
 // @Description: 创建对象
 // @return gin.HandlerFunc
 func CreateObjectHandler() gin.HandlerFunc {
-	var objReq ent.Object
-	var objResp *ent.Object
-	resp := Response{0, "success", nil, nil}
 	return func(c *gin.Context) {
+		var objReq ent.Object
+		var objResp *ent.Object
+		resp := Response{0, "success", nil, nil}
 		// 获取字段
 		if resp.err = c.ShouldBindJSON(&objReq); resp.err != nil {
 			resp.Code = 10001

@@ -11,10 +11,10 @@ import (
 // @Description: 创建评论
 // @return gin.HandlerFunc
 func CreateCommentHandler() gin.HandlerFunc {
-	var commentReq ent.Comment
-	var commentResp *ent.Comment
-	resp := Response{0, "success", nil, nil}
 	return func(c *gin.Context) {
+		var commentReq ent.Comment
+		var commentResp *ent.Comment
+		resp := Response{0, "success", nil, nil}
 		// 获取字段
 		if resp.err = c.ShouldBindJSON(&commentReq); resp.err != nil {
 			resp.Code = 10001
@@ -37,9 +37,9 @@ func CreateCommentHandler() gin.HandlerFunc {
 // @Description: 获取评论
 // @return gin.HandlerFunc
 func GetCommentHandler() gin.HandlerFunc {
-	var commentResp *ent.Comment
-	resp := Response{0, "success", nil, nil}
 	return func(c *gin.Context) {
+		var commentResp *ent.Comment
+		resp := Response{0, "success", nil, nil}
 		cid := c.Param("cid")
 		if commentResp, resp.err = services.GetCommentByUUID(c, cid); resp.err != nil {
 			resp.Code = 10003
@@ -57,9 +57,9 @@ func GetCommentHandler() gin.HandlerFunc {
 // @Description: 通过OID获取评论
 // @return gin.HandlerFunc
 func GetCommentsByObjIDHandler() gin.HandlerFunc {
-	var commentsResp []*ent.Comment
-	resp := Response{0, "success", nil, nil}
 	return func(c *gin.Context) {
+		var commentsResp []*ent.Comment
+		resp := Response{0, "success", nil, nil}
 		oid := c.Param("oid")
 		if commentsResp, resp.err = services.GetCommentsByObjectUUID(c, oid); resp.err != nil {
 			resp.Code = 10003
@@ -74,10 +74,10 @@ func GetCommentsByObjIDHandler() gin.HandlerFunc {
 }
 
 func GetCommentsByTimeHandler() gin.HandlerFunc {
-	var commentsResp []*ent.Comment
-	var offset, limit int
-	resp := Response{0, "success", nil, nil}
 	return func(c *gin.Context) {
+		var commentsResp []*ent.Comment
+		var offset, limit int
+		resp := Response{0, "success", nil, nil}
 		if offset, resp.err = strconv.Atoi(c.Query("offset")); resp.err != nil {
 			resp.Code = 10010
 			resp.Msg = "invalid offset"

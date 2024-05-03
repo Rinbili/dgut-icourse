@@ -19,7 +19,7 @@ func AuthHandler() gin.HandlerFunc {
 			// 解析token
 			if claims, err := utils.ParseToken(tokenString); err == nil {
 				// 验证token是否有效
-				if u, err := services.GetUserByUUID(privacy.DecisionContext(c, privacy.Allow), claims.UId); err == nil && u.UpdatedAt <= claims.IssuedAt.Time.Unix() {
+				if u, err := services.GetUserByUUID(privacy.DecisionContext(c, privacy.Allow), claims.UId); err == nil {
 					//token有效可用
 					c.Set("user", u)
 					c.Next()
@@ -27,7 +27,7 @@ func AuthHandler() gin.HandlerFunc {
 				}
 			}
 		}
-		c.Set("user", nil)
+		c.Set("user", (*ent.User)(nil))
 		c.Next()
 	}
 }
@@ -36,10 +36,10 @@ func AuthHandler() gin.HandlerFunc {
 // @Description: 登录
 // @return gin.HandlerFunc:
 func LoginHandler() gin.HandlerFunc {
-	var code, openid, token string
-	var u *ent.User
-	resp := Response{0, "success", nil, nil}
 	return func(c *gin.Context) {
+		var code, openid, token string
+		var u *ent.User
+		resp := Response{0, "success", nil, nil}
 		// 获取code
 		if code = c.Request.Header.Get("Authorization"); len(code) != 0 {
 			// 获取openid
