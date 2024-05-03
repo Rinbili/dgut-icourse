@@ -160,6 +160,21 @@ func (cc *CommentCreate) SetCourseComment(c *CourseComment) *CommentCreate {
 	return cc.SetCourseCommentID(c.ID)
 }
 
+// AddLikedUserIDs adds the "liked_users" edge to the User entity by IDs.
+func (cc *CommentCreate) AddLikedUserIDs(ids ...uuid.UUID) *CommentCreate {
+	cc.mutation.AddLikedUserIDs(ids...)
+	return cc
+}
+
+// AddLikedUsers adds the "liked_users" edges to the User entity.
+func (cc *CommentCreate) AddLikedUsers(u ...*User) *CommentCreate {
+	ids := make([]uuid.UUID, len(u))
+	for i := range u {
+		ids[i] = u[i].ID
+	}
+	return cc.AddLikedUserIDs(ids...)
+}
+
 // Mutation returns the CommentMutation object of the builder.
 func (cc *CommentCreate) Mutation() *CommentMutation {
 	return cc.mutation
@@ -358,6 +373,22 @@ func (cc *CommentCreate) createSpec() (*Comment, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(coursecomment.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := cc.mutation.LikedUsersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   comment.LikedUsersTable,
+			Columns: comment.LikedUsersPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

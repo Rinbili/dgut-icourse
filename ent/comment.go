@@ -49,9 +49,11 @@ type CommentEdges struct {
 	Children []*Comment `json:"children,omitempty"`
 	// CourseComment holds the value of the course_comment edge.
 	CourseComment *CourseComment `json:"course_comment,omitempty"`
+	// LikedUsers holds the value of the liked_users edge.
+	LikedUsers []*User `json:"liked_users,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [5]bool
+	loadedTypes [6]bool
 }
 
 // AuthorOrErr returns the Author value or an error if the edge
@@ -105,6 +107,15 @@ func (e CommentEdges) CourseCommentOrErr() (*CourseComment, error) {
 		return nil, &NotFoundError{label: coursecomment.Label}
 	}
 	return nil, &NotLoadedError{edge: "course_comment"}
+}
+
+// LikedUsersOrErr returns the LikedUsers value or an error if the edge
+// was not loaded in eager-loading.
+func (e CommentEdges) LikedUsersOrErr() ([]*User, error) {
+	if e.loadedTypes[5] {
+		return e.LikedUsers, nil
+	}
+	return nil, &NotLoadedError{edge: "liked_users"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -226,6 +237,11 @@ func (c *Comment) QueryChildren() *CommentQuery {
 // QueryCourseComment queries the "course_comment" edge of the Comment entity.
 func (c *Comment) QueryCourseComment() *CourseCommentQuery {
 	return NewCommentClient(c.config).QueryCourseComment(c)
+}
+
+// QueryLikedUsers queries the "liked_users" edge of the Comment entity.
+func (c *Comment) QueryLikedUsers() *UserQuery {
+	return NewCommentClient(c.config).QueryLikedUsers(c)
 }
 
 // Update returns a builder for updating this Comment.

@@ -86,22 +86,82 @@ func GetCommentsByObjectUUID(ctx context.Context, oidStr string) (comments []*en
 	if oid, err := uuid.Parse(oidStr); err != nil {
 		return nil, err
 	} else {
-		return Client.Comment.Query().
+		if comments, err = Client.Comment.Query().
 			Where(comment.HasObjectWith(object.ID(oid))).
 			WithAuthor().
+			WithLikedUsers().
 			WithCourseComment().
-			All(ctx)
+			All(ctx); err != nil {
+			return nil, err
+		}
+		return comments, nil
 	}
 }
 
+// GetCommentsByTime
+// @Description: 通过时间获取评论列表
+// @param ctx: context.Context
+// @param offset: int
+// @param limit: int
 func GetCommentsByTime(ctx context.Context, offset int, limit int) (comments []*ent.Comment, err error) {
 	return Client.Comment.Query().
 		Where(comment.HasObject()).
 		Order(comment.ByCreatedAt(sql.OrderDesc())).
 		Offset(offset).
 		WithAuthor().
+		WithLikedUsers().
 		WithCourseComment().
 		WithObject().
 		Limit(limit).
 		All(ctx)
+}
+
+// LikeComment
+// @Description: 点赞评论
+// @param ctx: context.Context
+// @param cidStr: string
+// @return error: err
+func LikeComment(ctx context.Context, cidStr string) (err error) {
+	user := ctx.Value("user").(*ent.User)
+	if user == nil {
+		return fmt.Errorf("invalid user")
+	}
+	if id, err := uuid.Parse(cidStr); err != nil {
+		return err
+	} else {
+		return WithTx(ctx, Client, func(tx *ent.Tx) error {
+			if _, err := tx.Comment.Update().
+				Where(comment.ID(id)).
+				AddLikedUsers(user).
+				Save(ctx); err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+}
+
+// UnlikeComment
+// @Description: 取消点赞评论
+// @param ctx: context.Context
+// @param cidStr: string
+// @return error: err
+func UnlikeComment(ctx context.Context, cidStr string) (err error) {
+	user := ctx.Value("user").(*ent.User)
+	if user == nil {
+		return fmt.Errorf("invalid user")
+	}
+	if id, err := uuid.Parse(cidStr); err != nil {
+		return err
+	} else {
+		return WithTx(ctx, Client, func(tx *ent.Tx) error {
+			if _, err := tx.Comment.Update().
+				Where(comment.ID(id)).
+				RemoveLikedUsers(user).
+				Save(ctx); err != nil {
+				return err
+			}
+			return nil
+		})
+	}
 }

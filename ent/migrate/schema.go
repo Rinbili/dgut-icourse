@@ -218,6 +218,31 @@ var (
 		Columns:    UserInfosColumns,
 		PrimaryKey: []*schema.Column{UserInfosColumns[0]},
 	}
+	// UserLikedCommentsColumns holds the columns for the "user_liked_comments" table.
+	UserLikedCommentsColumns = []*schema.Column{
+		{Name: "user_id", Type: field.TypeUUID},
+		{Name: "comment_id", Type: field.TypeUUID},
+	}
+	// UserLikedCommentsTable holds the schema information for the "user_liked_comments" table.
+	UserLikedCommentsTable = &schema.Table{
+		Name:       "user_liked_comments",
+		Columns:    UserLikedCommentsColumns,
+		PrimaryKey: []*schema.Column{UserLikedCommentsColumns[0], UserLikedCommentsColumns[1]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "user_liked_comments_user_id",
+				Columns:    []*schema.Column{UserLikedCommentsColumns[0]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+			{
+				Symbol:     "user_liked_comments_comment_id",
+				Columns:    []*schema.Column{UserLikedCommentsColumns[1]},
+				RefColumns: []*schema.Column{CommentsColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		CommentsTable,
@@ -229,6 +254,7 @@ var (
 		PersonsTable,
 		UsersTable,
 		UserInfosTable,
+		UserLikedCommentsTable,
 	}
 )
 
@@ -244,4 +270,6 @@ func init() {
 	OthersTable.ForeignKeys[0].RefTable = ObjectsTable
 	PersonsTable.ForeignKeys[0].RefTable = ObjectsTable
 	UsersTable.ForeignKeys[0].RefTable = UserInfosTable
+	UserLikedCommentsTable.ForeignKeys[0].RefTable = UsersTable
+	UserLikedCommentsTable.ForeignKeys[1].RefTable = CommentsTable
 }

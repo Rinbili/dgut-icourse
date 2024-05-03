@@ -73,6 +73,9 @@ func GetCommentsByObjIDHandler() gin.HandlerFunc {
 	}
 }
 
+// GetCommentsByTimeHandler
+// @Description: 通过时间获取评论
+// @return gin.HandlerFunc
 func GetCommentsByTimeHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var commentsResp []*ent.Comment
@@ -97,6 +100,42 @@ func GetCommentsByTimeHandler() gin.HandlerFunc {
 			return
 		}
 		resp.Data = commentsResp
+		ResponseOK(c, resp)
+		return
+	}
+}
+
+// LikeCommentHandler
+// @Description: 点赞评论
+// @return gin.HandlerFunc
+func LikeCommentHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		resp := Response{0, "success", nil, nil}
+		cid := c.Param("cid")
+		if resp.err = services.LikeComment(c, cid); resp.err != nil {
+			resp.Code = 10003
+			resp.Msg = "like comment failed, " + resp.err.Error()
+			ResponseBadRequest(c, resp)
+			return
+		}
+		ResponseOK(c, resp)
+		return
+	}
+}
+
+// UnlikeCommentHandler
+// @Description: 取消点赞评论
+// @return gin.HandlerFunc
+func UnlikeCommentHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		resp := Response{0, "success", nil, nil}
+		cid := c.Param("cid")
+		if resp.err = services.UnlikeComment(c, cid); resp.err != nil {
+			resp.Code = 10003
+			resp.Msg = "unlike comment failed, " + resp.err.Error()
+			ResponseBadRequest(c, resp)
+			return
+		}
 		ResponseOK(c, resp)
 		return
 	}

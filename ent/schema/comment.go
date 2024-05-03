@@ -42,6 +42,8 @@ func (Comment) Edges() []ent.Edge {
 			Unique(),
 		edge.To("course_comment", CourseComment.Type).
 			Unique(),
+		edge.From("liked_users", User.Type).
+			Ref("liked_comments"),
 	}
 }
 

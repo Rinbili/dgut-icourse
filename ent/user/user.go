@@ -31,6 +31,8 @@ const (
 	EdgeInfo = "info"
 	// EdgeComments holds the string denoting the comments edge name in mutations.
 	EdgeComments = "comments"
+	// EdgeLikedComments holds the string denoting the liked_comments edge name in mutations.
+	EdgeLikedComments = "liked_comments"
 	// Table holds the table name of the user in the database.
 	Table = "users"
 	// InfoTable is the table that holds the info relation/edge.
@@ -47,6 +49,11 @@ const (
 	CommentsInverseTable = "comments"
 	// CommentsColumn is the table column denoting the comments relation/edge.
 	CommentsColumn = "comment_author"
+	// LikedCommentsTable is the table that holds the liked_comments relation/edge. The primary key declared below.
+	LikedCommentsTable = "user_liked_comments"
+	// LikedCommentsInverseTable is the table name for the Comment entity.
+	// It exists in this package in order to avoid circular dependency with the "comment" package.
+	LikedCommentsInverseTable = "comments"
 )
 
 // Columns holds all SQL columns for user fields.
@@ -66,6 +73,12 @@ var Columns = []string{
 var ForeignKeys = []string{
 	"user_info",
 }
+
+var (
+	// LikedCommentsPrimaryKey and LikedCommentsColumn2 are the table columns denoting the
+	// primary key for the liked_comments relation (M2M).
+	LikedCommentsPrimaryKey = []string{"user_id", "comment_id"}
+)
 
 // ValidColumn reports if the column name is valid (part of the table columns).
 func ValidColumn(column string) bool {
@@ -162,6 +175,20 @@ func ByComments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newCommentsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByLikedCommentsCount orders the results by liked_comments count.
+func ByLikedCommentsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newLikedCommentsStep(), opts...)
+	}
+}
+
+// ByLikedComments orders the results by liked_comments terms.
+func ByLikedComments(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newLikedCommentsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newInfoStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -174,5 +201,12 @@ func newCommentsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(CommentsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, true, CommentsTable, CommentsColumn),
+	)
+}
+func newLikedCommentsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(LikedCommentsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2M, false, LikedCommentsTable, LikedCommentsPrimaryKey...),
 	)
 }

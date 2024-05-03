@@ -56,6 +56,7 @@ func (User) Edges() []ent.Edge {
 		edge.From("comments", Comment.Type).
 			Ref("author").
 			Comment("评论"),
+		edge.To("liked_comments", Comment.Type),
 	}
 }
 

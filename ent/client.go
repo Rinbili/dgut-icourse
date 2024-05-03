@@ -461,6 +461,22 @@ func (c *CommentClient) QueryCourseComment(co *Comment) *CourseCommentQuery {
 	return query
 }
 
+// QueryLikedUsers queries the liked_users edge of a Comment.
+func (c *CommentClient) QueryLikedUsers(co *Comment) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := co.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(comment.Table, comment.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, comment.LikedUsersTable, comment.LikedUsersPrimaryKey...),
+		)
+		fromV = sqlgraph.Neighbors(co.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *CommentClient) Hooks() []Hook {
 	return c.hooks.Comment
@@ -1641,6 +1657,22 @@ func (c *UserClient) QueryComments(u *User) *CommentQuery {
 			sqlgraph.From(user.Table, user.FieldID, id),
 			sqlgraph.To(comment.Table, comment.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, true, user.CommentsTable, user.CommentsColumn),
+		)
+		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryLikedComments queries the liked_comments edge of a User.
+func (c *UserClient) QueryLikedComments(u *User) *CommentQuery {
+	query := (&CommentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := u.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(comment.Table, comment.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, false, user.LikedCommentsTable, user.LikedCommentsPrimaryKey...),
 		)
 		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
 		return fromV, nil

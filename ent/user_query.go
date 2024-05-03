@@ -21,13 +21,14 @@ import (
 // UserQuery is the builder for querying User entities.
 type UserQuery struct {
 	config
-	ctx          *QueryContext
-	order        []user.OrderOption
-	inters       []Interceptor
-	predicates   []predicate.User
-	withInfo     *UserInfoQuery
-	withComments *CommentQuery
-	withFKs      bool
+	ctx               *QueryContext
+	order             []user.OrderOption
+	inters            []Interceptor
+	predicates        []predicate.User
+	withInfo          *UserInfoQuery
+	withComments      *CommentQuery
+	withLikedComments *CommentQuery
+	withFKs           bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -101,6 +102,28 @@ func (uq *UserQuery) QueryComments() *CommentQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(comment.Table, comment.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, true, user.CommentsTable, user.CommentsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryLikedComments chains the current query on the "liked_comments" edge.
+func (uq *UserQuery) QueryLikedComments() *CommentQuery {
+	query := (&CommentClient{config: uq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := uq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := uq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(comment.Table, comment.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, false, user.LikedCommentsTable, user.LikedCommentsPrimaryKey...),
 		)
 		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
 		return fromU, nil
@@ -295,13 +318,14 @@ func (uq *UserQuery) Clone() *UserQuery {
 		return nil
 	}
 	return &UserQuery{
-		config:       uq.config,
-		ctx:          uq.ctx.Clone(),
-		order:        append([]user.OrderOption{}, uq.order...),
-		inters:       append([]Interceptor{}, uq.inters...),
-		predicates:   append([]predicate.User{}, uq.predicates...),
-		withInfo:     uq.withInfo.Clone(),
-		withComments: uq.withComments.Clone(),
+		config:            uq.config,
+		ctx:               uq.ctx.Clone(),
+		order:             append([]user.OrderOption{}, uq.order...),
+		inters:            append([]Interceptor{}, uq.inters...),
+		predicates:        append([]predicate.User{}, uq.predicates...),
+		withInfo:          uq.withInfo.Clone(),
+		withComments:      uq.withComments.Clone(),
+		withLikedComments: uq.withLikedComments.Clone(),
 		// clone intermediate query.
 		sql:  uq.sql.Clone(),
 		path: uq.path,
@@ -327,6 +351,17 @@ func (uq *UserQuery) WithComments(opts ...func(*CommentQuery)) *UserQuery {
 		opt(query)
 	}
 	uq.withComments = query
+	return uq
+}
+
+// WithLikedComments tells the query-builder to eager-load the nodes that are connected to
+// the "liked_comments" edge. The optional arguments are used to configure the query builder of the edge.
+func (uq *UserQuery) WithLikedComments(opts ...func(*CommentQuery)) *UserQuery {
+	query := (&CommentClient{config: uq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	uq.withLikedComments = query
 	return uq
 }
 
@@ -409,9 +444,10 @@ func (uq *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		nodes       = []*User{}
 		withFKs     = uq.withFKs
 		_spec       = uq.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [3]bool{
 			uq.withInfo != nil,
 			uq.withComments != nil,
+			uq.withLikedComments != nil,
 		}
 	)
 	if uq.withInfo != nil {
@@ -448,6 +484,13 @@ func (uq *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := uq.loadComments(ctx, query, nodes,
 			func(n *User) { n.Edges.Comments = []*Comment{} },
 			func(n *User, e *Comment) { n.Edges.Comments = append(n.Edges.Comments, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := uq.withLikedComments; query != nil {
+		if err := uq.loadLikedComments(ctx, query, nodes,
+			func(n *User) { n.Edges.LikedComments = []*Comment{} },
+			func(n *User, e *Comment) { n.Edges.LikedComments = append(n.Edges.LikedComments, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -514,6 +557,67 @@ func (uq *UserQuery) loadComments(ctx context.Context, query *CommentQuery, node
 			return fmt.Errorf(`unexpected referenced foreign-key "comment_author" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
+	}
+	return nil
+}
+func (uq *UserQuery) loadLikedComments(ctx context.Context, query *CommentQuery, nodes []*User, init func(*User), assign func(*User, *Comment)) error {
+	edgeIDs := make([]driver.Value, len(nodes))
+	byID := make(map[uuid.UUID]*User)
+	nids := make(map[uuid.UUID]map[*User]struct{})
+	for i, node := range nodes {
+		edgeIDs[i] = node.ID
+		byID[node.ID] = node
+		if init != nil {
+			init(node)
+		}
+	}
+	query.Where(func(s *sql.Selector) {
+		joinT := sql.Table(user.LikedCommentsTable)
+		s.Join(joinT).On(s.C(comment.FieldID), joinT.C(user.LikedCommentsPrimaryKey[1]))
+		s.Where(sql.InValues(joinT.C(user.LikedCommentsPrimaryKey[0]), edgeIDs...))
+		columns := s.SelectedColumns()
+		s.Select(joinT.C(user.LikedCommentsPrimaryKey[0]))
+		s.AppendSelect(columns...)
+		s.SetDistinct(false)
+	})
+	if err := query.prepareQuery(ctx); err != nil {
+		return err
+	}
+	qr := QuerierFunc(func(ctx context.Context, q Query) (Value, error) {
+		return query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
+			assign := spec.Assign
+			values := spec.ScanValues
+			spec.ScanValues = func(columns []string) ([]any, error) {
+				values, err := values(columns[1:])
+				if err != nil {
+					return nil, err
+				}
+				return append([]any{new(uuid.UUID)}, values...), nil
+			}
+			spec.Assign = func(columns []string, values []any) error {
+				outValue := *values[0].(*uuid.UUID)
+				inValue := *values[1].(*uuid.UUID)
+				if nids[inValue] == nil {
+					nids[inValue] = map[*User]struct{}{byID[outValue]: {}}
+					return assign(columns[1:], values[1:])
+				}
+				nids[inValue][byID[outValue]] = struct{}{}
+				return nil
+			}
+		})
+	})
+	neighbors, err := withInterceptors[[]*Comment](ctx, query, qr, query.inters)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected "liked_comments" node returned %v`, n.ID)
+		}
+		for kn := range nodes {
+			assign(kn, n)
+		}
 	}
 	return nil
 }

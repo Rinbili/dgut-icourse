@@ -25,4 +25,6 @@ func InitRouter(r *gin.Engine) {
 	comment.GET("/object/:oid", handlers.GetCommentsByObjIDHandler())
 	comment.GET("/last", handlers.GetCommentsByTimeHandler())
 	comment.POST("/create", handlers.CreateCommentHandler())
+	comment.POST("/:cid/like", handlers.LikeCommentHandler())
+	comment.POST("/:cid/unlike", handlers.UnlikeCommentHandler())
 }

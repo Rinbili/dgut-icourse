@@ -31,6 +31,7 @@ type CommentQuery struct {
 	withParent        *CommentQuery
 	withChildren      *CommentQuery
 	withCourseComment *CourseCommentQuery
+	withLikedUsers    *UserQuery
 	withFKs           bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -171,6 +172,28 @@ func (cq *CommentQuery) QueryCourseComment() *CourseCommentQuery {
 			sqlgraph.From(comment.Table, comment.FieldID, selector),
 			sqlgraph.To(coursecomment.Table, coursecomment.FieldID),
 			sqlgraph.Edge(sqlgraph.O2O, false, comment.CourseCommentTable, comment.CourseCommentColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(cq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryLikedUsers chains the current query on the "liked_users" edge.
+func (cq *CommentQuery) QueryLikedUsers() *UserQuery {
+	query := (&UserClient{config: cq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := cq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := cq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(comment.Table, comment.FieldID, selector),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, comment.LikedUsersTable, comment.LikedUsersPrimaryKey...),
 		)
 		fromU = sqlgraph.SetNeighbors(cq.driver.Dialect(), step)
 		return fromU, nil
@@ -375,6 +398,7 @@ func (cq *CommentQuery) Clone() *CommentQuery {
 		withParent:        cq.withParent.Clone(),
 		withChildren:      cq.withChildren.Clone(),
 		withCourseComment: cq.withCourseComment.Clone(),
+		withLikedUsers:    cq.withLikedUsers.Clone(),
 		// clone intermediate query.
 		sql:  cq.sql.Clone(),
 		path: cq.path,
@@ -433,6 +457,17 @@ func (cq *CommentQuery) WithCourseComment(opts ...func(*CourseCommentQuery)) *Co
 		opt(query)
 	}
 	cq.withCourseComment = query
+	return cq
+}
+
+// WithLikedUsers tells the query-builder to eager-load the nodes that are connected to
+// the "liked_users" edge. The optional arguments are used to configure the query builder of the edge.
+func (cq *CommentQuery) WithLikedUsers(opts ...func(*UserQuery)) *CommentQuery {
+	query := (&UserClient{config: cq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	cq.withLikedUsers = query
 	return cq
 }
 
@@ -515,12 +550,13 @@ func (cq *CommentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Comm
 		nodes       = []*Comment{}
 		withFKs     = cq.withFKs
 		_spec       = cq.querySpec()
-		loadedTypes = [5]bool{
+		loadedTypes = [6]bool{
 			cq.withAuthor != nil,
 			cq.withObject != nil,
 			cq.withParent != nil,
 			cq.withChildren != nil,
 			cq.withCourseComment != nil,
+			cq.withLikedUsers != nil,
 		}
 	)
 	if cq.withAuthor != nil || cq.withObject != nil || cq.withParent != nil {
@@ -575,6 +611,13 @@ func (cq *CommentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Comm
 	if query := cq.withCourseComment; query != nil {
 		if err := cq.loadCourseComment(ctx, query, nodes, nil,
 			func(n *Comment, e *CourseComment) { n.Edges.CourseComment = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := cq.withLikedUsers; query != nil {
+		if err := cq.loadLikedUsers(ctx, query, nodes,
+			func(n *Comment) { n.Edges.LikedUsers = []*User{} },
+			func(n *Comment, e *User) { n.Edges.LikedUsers = append(n.Edges.LikedUsers, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -733,6 +776,67 @@ func (cq *CommentQuery) loadCourseComment(ctx context.Context, query *CourseComm
 			return fmt.Errorf(`unexpected referenced foreign-key "comment_course_comment" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
+	}
+	return nil
+}
+func (cq *CommentQuery) loadLikedUsers(ctx context.Context, query *UserQuery, nodes []*Comment, init func(*Comment), assign func(*Comment, *User)) error {
+	edgeIDs := make([]driver.Value, len(nodes))
+	byID := make(map[uuid.UUID]*Comment)
+	nids := make(map[uuid.UUID]map[*Comment]struct{})
+	for i, node := range nodes {
+		edgeIDs[i] = node.ID
+		byID[node.ID] = node
+		if init != nil {
+			init(node)
+		}
+	}
+	query.Where(func(s *sql.Selector) {
+		joinT := sql.Table(comment.LikedUsersTable)
+		s.Join(joinT).On(s.C(user.FieldID), joinT.C(comment.LikedUsersPrimaryKey[0]))
+		s.Where(sql.InValues(joinT.C(comment.LikedUsersPrimaryKey[1]), edgeIDs...))
+		columns := s.SelectedColumns()
+		s.Select(joinT.C(comment.LikedUsersPrimaryKey[1]))
+		s.AppendSelect(columns...)
+		s.SetDistinct(false)
+	})
+	if err := query.prepareQuery(ctx); err != nil {
+		return err
+	}
+	qr := QuerierFunc(func(ctx context.Context, q Query) (Value, error) {
+		return query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
+			assign := spec.Assign
+			values := spec.ScanValues
+			spec.ScanValues = func(columns []string) ([]any, error) {
+				values, err := values(columns[1:])
+				if err != nil {
+					return nil, err
+				}
+				return append([]any{new(uuid.UUID)}, values...), nil
+			}
+			spec.Assign = func(columns []string, values []any) error {
+				outValue := *values[0].(*uuid.UUID)
+				inValue := *values[1].(*uuid.UUID)
+				if nids[inValue] == nil {
+					nids[inValue] = map[*Comment]struct{}{byID[outValue]: {}}
+					return assign(columns[1:], values[1:])
+				}
+				nids[inValue][byID[outValue]] = struct{}{}
+				return nil
+			}
+		})
+	})
+	neighbors, err := withInterceptors[[]*User](ctx, query, qr, query.inters)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected "liked_users" node returned %v`, n.ID)
+		}
+		for kn := range nodes {
+			assign(kn, n)
+		}
 	}
 	return nil
 }
