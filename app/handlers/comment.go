@@ -53,6 +53,25 @@ func GetCommentHandler() gin.HandlerFunc {
 	}
 }
 
+// GetMyCommentsHandler
+// @Description: 获取我的评论
+// @return gin.HandlerFunc
+func GetMyCommentsHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var commentsResp []*ent.Comment
+		resp := Response{0, "success", nil, nil}
+		if commentsResp, resp.err = services.GetMyComments(c); resp.err != nil {
+			resp.Code = 10003
+			resp.Msg = "get comments failed, " + resp.err.Error()
+			ResponseBadRequest(c, resp)
+			return
+		}
+		resp.Data = commentsResp
+		ResponseOK(c, resp)
+		return
+	}
+}
+
 // GetCommentsByObjIDHandler
 // @Description: 通过OID获取评论
 // @return gin.HandlerFunc
@@ -100,6 +119,28 @@ func GetCommentsByTimeHandler() gin.HandlerFunc {
 			return
 		}
 		resp.Data = commentsResp
+		ResponseOK(c, resp)
+		return
+	}
+}
+
+func UpdateCommentHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var commentReq ent.Comment
+		var commentResp *ent.Comment
+		resp := Response{0, "success", nil, nil}
+		if resp.err = c.ShouldBindJSON(&commentReq); resp.err != nil {
+			resp.Code = 10001
+			resp.Msg = "invalid json"
+			ResponseBadRequest(c, resp)
+			return
+		} else if commentResp, resp.err = services.UpdateComment(c, commentReq); resp.err != nil {
+			resp.Code = 10002
+			resp.Msg = "update comment failed, " + resp.err.Error()
+			ResponseBadRequest(c, resp)
+			return
+		}
+		resp.Data = commentResp
 		ResponseOK(c, resp)
 		return
 	}

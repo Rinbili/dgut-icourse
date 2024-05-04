@@ -76,6 +76,14 @@ func GetCommentByUUID(ctx context.Context, cidStr string) (c *ent.Comment, err e
 	}
 }
 
+func GetMyComments(ctx context.Context) (comments []*ent.Comment, err error) {
+	u := ctx.Value("user").(*ent.User)
+	if u == nil {
+		return nil, fmt.Errorf("invalid user")
+	}
+	return u.QueryComments().WithParent().WithObject().All(ctx)
+}
+
 // GetCommentsByObjectUUID
 // @Description: 通过OID获取评论列表
 // @param ctx: context.Context
@@ -114,6 +122,58 @@ func GetCommentsByTime(ctx context.Context, offset int, limit int) (comments []*
 		WithObject().
 		Limit(limit).
 		All(ctx)
+}
+
+func UpdateComment(ctx context.Context, source ent.Comment) (c *ent.Comment, err error) {
+	if user := ctx.Value("user").(*ent.User); user == nil {
+		return nil, fmt.Errorf("invalid user")
+	} else {
+		if err = WithTx(ctx, Client, func(tx *ent.Tx) (err error) {
+			c, err = tx.Comment.Query().
+				Where(comment.ID(source.ID)).
+				WithAuthor().
+				WithObject().
+				WithCourseComment().
+				Only(ctx)
+			if err != nil {
+				return err
+			}
+			if c.Edges.Author.ID != user.ID {
+				return fmt.Errorf("invalid user")
+			} else {
+				switch c.Edges.Object.Type {
+				case 2:
+					uo := tx.CourseComment.UpdateOne(c.Edges.CourseComment)
+					if source.Edges.CourseComment != nil {
+						if source.Edges.CourseComment.Difficulty != 0 {
+							uo.SetDifficulty(source.Edges.CourseComment.Difficulty)
+						}
+						if source.Edges.CourseComment.Mark != 0 {
+							uo.SetMark(source.Edges.CourseComment.Mark)
+						}
+						if source.Edges.CourseComment.Quality != 0 {
+							uo.SetQuality(source.Edges.CourseComment.Quality)
+						}
+						if source.Edges.CourseComment.Workload != 0 {
+							uo.SetWorkload(source.Edges.CourseComment.Workload)
+						}
+					}
+					_, err = uo.Save(ctx)
+					break
+				default:
+					return fmt.Errorf("invalid object type: %d", c.Edges.Object.Type)
+				}
+				c, err = tx.Comment.UpdateOne(c).
+					SetContent(source.Content).
+					SetScore(source.Score).
+					Save(ctx)
+				return err
+			}
+		}); err != nil {
+			return nil, err
+		}
+	}
+	return
 }
 
 // LikeComment
