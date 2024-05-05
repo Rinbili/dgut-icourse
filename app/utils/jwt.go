@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const TokenExpireDuration = 24 * time.Hour
+const TokenExpireDuration = 30 * 24 * time.Hour
 
 var mySigningKey = []byte(config.Config.Secret)
 

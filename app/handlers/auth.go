@@ -14,7 +14,7 @@ import (
 func AuthHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 从请求头中获取token
-		if tokenString := c.Request.Header.Get("Authorization"); len(tokenString) != 0 {
+		if tokenString := c.Request.Header.Get("Authorization"); len(tokenString) > 7 {
 			tokenString = tokenString[7:]
 			// 解析token
 			if claims, err := utils.ParseToken(tokenString); err == nil {
