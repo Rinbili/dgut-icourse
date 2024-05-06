@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"dgut-icourse/app/services"
+	"dgut-icourse/app/utils"
 	"dgut-icourse/ent"
 	"github.com/gin-gonic/gin"
 	"strconv"
@@ -48,6 +49,38 @@ func GetObjectHandler() gin.HandlerFunc {
 			return
 		}
 		resp.Data = objResp
+		ResponseOK(c, resp)
+		return
+	}
+}
+
+// GetObjectsHandler
+// @Description: 获取对象列表
+// @return gin.HandlerFunc
+func GetObjectsHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var objsResp []*ent.Object
+		var paging utils.Paging
+		resp := Response{0, "success", nil, nil}
+		if paging.Page, resp.err = strconv.Atoi(c.Query("page")); resp.err != nil {
+			resp.Code = 10010
+			resp.Msg = "invalid offset"
+			ResponseBadRequest(c, resp)
+			return
+		}
+		if paging.PageSize, resp.err = strconv.Atoi(c.Query("size")); resp.err != nil {
+			resp.Code = 10011
+			resp.Msg = "invalid limit"
+			ResponseBadRequest(c, resp)
+			return
+		}
+		if objsResp, resp.err = services.GetObjects(c, paging); resp.err != nil {
+			resp.Code = 10003
+			resp.Msg = "get objects failed, " + resp.err.Error()
+			ResponseBadRequest(c, resp)
+			return
+		}
+		resp.Data = objsResp
 		ResponseOK(c, resp)
 		return
 	}

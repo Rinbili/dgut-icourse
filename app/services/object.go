@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"dgut-icourse/app/utils"
 	"dgut-icourse/ent"
 	"dgut-icourse/ent/object"
 	"fmt"
@@ -92,6 +93,32 @@ func GetObjectByUUID(ctx context.Context, uuidString string) (obj *ent.Object, e
 			WithComments().
 			Only(ctx)
 	}
+}
+
+// GetObjects
+// @Description: 获取对象列表
+// @param ctx
+// @param paging
+// @return []*ent.Object
+// @return error
+func GetObjects(ctx context.Context, paging utils.Paging) (objs []*ent.Object, err error) {
+	return Client.Object.Query().
+		Offset(paging.Offset()).
+		Order(ent.Desc(object.FieldUpdatedAt)).
+		WithPerson().
+		WithOrganization().
+		WithCourse(func(q *ent.CourseQuery) {
+			q.WithOrganization(func(query *ent.ObjectQuery) {
+				query.WithOrganization()
+			})
+			q.WithTeacher(func(q *ent.ObjectQuery) {
+				q.WithPerson()
+			})
+		}).
+		WithOther().
+		WithComments().
+		Limit(paging.Limit()).
+		All(ctx)
 }
 
 // GetObjectsByType

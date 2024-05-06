@@ -50,8 +50,8 @@ func (oc *OrganizationCreate) SetNillableUpdatedAt(i *int64) *OrganizationCreate
 }
 
 // SetType sets the "type" field.
-func (oc *OrganizationCreate) SetType(i int8) *OrganizationCreate {
-	oc.mutation.SetType(i)
+func (oc *OrganizationCreate) SetType(s string) *OrganizationCreate {
+	oc.mutation.SetType(s)
 	return oc
 }
 
@@ -169,7 +169,7 @@ func (oc *OrganizationCreate) createSpec() (*Organization, *sqlgraph.CreateSpec)
 		_node.UpdatedAt = value
 	}
 	if value, ok := oc.mutation.GetType(); ok {
-		_spec.SetField(organization.FieldType, field.TypeInt8, value)
+		_spec.SetField(organization.FieldType, field.TypeString, value)
 		_node.Type = value
 	}
 	if value, ok := oc.mutation.Address(); ok {

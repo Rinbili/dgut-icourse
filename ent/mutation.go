@@ -3584,8 +3584,7 @@ type OrganizationMutation struct {
 	addcreated_at *int64
 	updated_at    *int64
 	addupdated_at *int64
-	_type         *int8
-	add_type      *int8
+	_type         *string
 	address       *string
 	clearedFields map[string]struct{}
 	object        *uuid.UUID
@@ -3806,13 +3805,12 @@ func (m *OrganizationMutation) ResetUpdatedAt() {
 }
 
 // SetType sets the "type" field.
-func (m *OrganizationMutation) SetType(i int8) {
-	m._type = &i
-	m.add_type = nil
+func (m *OrganizationMutation) SetType(s string) {
+	m._type = &s
 }
 
 // GetType returns the value of the "type" field in the mutation.
-func (m *OrganizationMutation) GetType() (r int8, exists bool) {
+func (m *OrganizationMutation) GetType() (r string, exists bool) {
 	v := m._type
 	if v == nil {
 		return
@@ -3823,7 +3821,7 @@ func (m *OrganizationMutation) GetType() (r int8, exists bool) {
 // OldType returns the old "type" field's value of the Organization entity.
 // If the Organization object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *OrganizationMutation) OldType(ctx context.Context) (v int8, err error) {
+func (m *OrganizationMutation) OldType(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldType is only allowed on UpdateOne operations")
 	}
@@ -3837,28 +3835,9 @@ func (m *OrganizationMutation) OldType(ctx context.Context) (v int8, err error) 
 	return oldValue.Type, nil
 }
 
-// AddType adds i to the "type" field.
-func (m *OrganizationMutation) AddType(i int8) {
-	if m.add_type != nil {
-		*m.add_type += i
-	} else {
-		m.add_type = &i
-	}
-}
-
-// AddedType returns the value that was added to the "type" field in this mutation.
-func (m *OrganizationMutation) AddedType() (r int8, exists bool) {
-	v := m.add_type
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
 // ResetType resets all changes to the "type" field.
 func (m *OrganizationMutation) ResetType() {
 	m._type = nil
-	m.add_type = nil
 }
 
 // SetAddress sets the "address" field.
@@ -4040,7 +4019,7 @@ func (m *OrganizationMutation) SetField(name string, value ent.Value) error {
 		m.SetUpdatedAt(v)
 		return nil
 	case organization.FieldType:
-		v, ok := value.(int8)
+		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -4067,9 +4046,6 @@ func (m *OrganizationMutation) AddedFields() []string {
 	if m.addupdated_at != nil {
 		fields = append(fields, organization.FieldUpdatedAt)
 	}
-	if m.add_type != nil {
-		fields = append(fields, organization.FieldType)
-	}
 	return fields
 }
 
@@ -4082,8 +4058,6 @@ func (m *OrganizationMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedCreatedAt()
 	case organization.FieldUpdatedAt:
 		return m.AddedUpdatedAt()
-	case organization.FieldType:
-		return m.AddedType()
 	}
 	return nil, false
 }
@@ -4106,13 +4080,6 @@ func (m *OrganizationMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddUpdatedAt(v)
-		return nil
-	case organization.FieldType:
-		v, ok := value.(int8)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.AddType(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Organization numeric field %s", name)

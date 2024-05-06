@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"dgut-icourse/app/services"
+	"dgut-icourse/app/utils"
 	"dgut-icourse/ent"
 	"github.com/gin-gonic/gin"
 	"strconv"
@@ -72,6 +73,23 @@ func GetMyCommentsHandler() gin.HandlerFunc {
 	}
 }
 
+func GetCommentsByCommentUUIDHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var commentsResp []*ent.Comment
+		resp := Response{0, "success", nil, nil}
+		cid := c.Param("cid")
+		if commentsResp, resp.err = services.GetCommentsByCommentUUID(c, cid); resp.err != nil {
+			resp.Code = 10003
+			resp.Msg = "get comments failed, " + resp.err.Error()
+			ResponseBadRequest(c, resp)
+			return
+		}
+		resp.Data = commentsResp
+		ResponseOK(c, resp)
+		return
+	}
+}
+
 // GetCommentsByObjIDHandler
 // @Description: 通过OID获取评论
 // @return gin.HandlerFunc
@@ -98,21 +116,21 @@ func GetCommentsByObjIDHandler() gin.HandlerFunc {
 func GetCommentsByTimeHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var commentsResp []*ent.Comment
-		var offset, limit int
+		var paging utils.Paging
 		resp := Response{0, "success", nil, nil}
-		if offset, resp.err = strconv.Atoi(c.Query("offset")); resp.err != nil {
+		if paging.Page, resp.err = strconv.Atoi(c.Query("page")); resp.err != nil {
 			resp.Code = 10010
 			resp.Msg = "invalid offset"
 			ResponseBadRequest(c, resp)
 			return
 		}
-		if limit, resp.err = strconv.Atoi(c.Query("limit")); resp.err != nil {
+		if paging.PageSize, resp.err = strconv.Atoi(c.Query("size")); resp.err != nil {
 			resp.Code = 10011
 			resp.Msg = "invalid limit"
 			ResponseBadRequest(c, resp)
 			return
 		}
-		if commentsResp, resp.err = services.GetCommentsByTime(c, offset, limit); resp.err != nil {
+		if commentsResp, resp.err = services.GetCommentsByTime(c, paging); resp.err != nil {
 			resp.Code = 10003
 			resp.Msg = "get comments failed, " + resp.err.Error()
 			ResponseBadRequest(c, resp)
@@ -141,6 +159,26 @@ func UpdateCommentHandler() gin.HandlerFunc {
 			return
 		}
 		resp.Data = commentResp
+		ResponseOK(c, resp)
+		return
+	}
+}
+
+func GetCommentLikeCountAndDidILikeHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		resp := Response{0, "success", nil, nil}
+		cid := c.Param("cid")
+		if count, didILike, err := services.GetCommentLikeCountAndDidILike(c, cid); err != nil {
+			resp.Code = 10003
+			resp.Msg = "get comment like count and did I like failed, " + err.Error()
+			ResponseBadRequest(c, resp)
+			return
+		} else {
+			resp.Data = gin.H{
+				"count":      count,
+				"did_i_like": didILike,
+			}
+		}
 		ResponseOK(c, resp)
 		return
 	}

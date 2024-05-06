@@ -43,23 +43,16 @@ func (ou *OrganizationUpdate) AddUpdatedAt(i int64) *OrganizationUpdate {
 }
 
 // SetType sets the "type" field.
-func (ou *OrganizationUpdate) SetType(i int8) *OrganizationUpdate {
-	ou.mutation.ResetType()
-	ou.mutation.SetType(i)
+func (ou *OrganizationUpdate) SetType(s string) *OrganizationUpdate {
+	ou.mutation.SetType(s)
 	return ou
 }
 
 // SetNillableType sets the "type" field if the given value is not nil.
-func (ou *OrganizationUpdate) SetNillableType(i *int8) *OrganizationUpdate {
-	if i != nil {
-		ou.SetType(*i)
+func (ou *OrganizationUpdate) SetNillableType(s *string) *OrganizationUpdate {
+	if s != nil {
+		ou.SetType(*s)
 	}
-	return ou
-}
-
-// AddType adds i to the "type" field.
-func (ou *OrganizationUpdate) AddType(i int8) *OrganizationUpdate {
-	ou.mutation.AddType(i)
 	return ou
 }
 
@@ -162,10 +155,7 @@ func (ou *OrganizationUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		_spec.AddField(organization.FieldUpdatedAt, field.TypeInt64, value)
 	}
 	if value, ok := ou.mutation.GetType(); ok {
-		_spec.SetField(organization.FieldType, field.TypeInt8, value)
-	}
-	if value, ok := ou.mutation.AddedType(); ok {
-		_spec.AddField(organization.FieldType, field.TypeInt8, value)
+		_spec.SetField(organization.FieldType, field.TypeString, value)
 	}
 	if value, ok := ou.mutation.Address(); ok {
 		_spec.SetField(organization.FieldAddress, field.TypeString, value)
@@ -233,23 +223,16 @@ func (ouo *OrganizationUpdateOne) AddUpdatedAt(i int64) *OrganizationUpdateOne {
 }
 
 // SetType sets the "type" field.
-func (ouo *OrganizationUpdateOne) SetType(i int8) *OrganizationUpdateOne {
-	ouo.mutation.ResetType()
-	ouo.mutation.SetType(i)
+func (ouo *OrganizationUpdateOne) SetType(s string) *OrganizationUpdateOne {
+	ouo.mutation.SetType(s)
 	return ouo
 }
 
 // SetNillableType sets the "type" field if the given value is not nil.
-func (ouo *OrganizationUpdateOne) SetNillableType(i *int8) *OrganizationUpdateOne {
-	if i != nil {
-		ouo.SetType(*i)
+func (ouo *OrganizationUpdateOne) SetNillableType(s *string) *OrganizationUpdateOne {
+	if s != nil {
+		ouo.SetType(*s)
 	}
-	return ouo
-}
-
-// AddType adds i to the "type" field.
-func (ouo *OrganizationUpdateOne) AddType(i int8) *OrganizationUpdateOne {
-	ouo.mutation.AddType(i)
 	return ouo
 }
 
@@ -382,10 +365,7 @@ func (ouo *OrganizationUpdateOne) sqlSave(ctx context.Context) (_node *Organizat
 		_spec.AddField(organization.FieldUpdatedAt, field.TypeInt64, value)
 	}
 	if value, ok := ouo.mutation.GetType(); ok {
-		_spec.SetField(organization.FieldType, field.TypeInt8, value)
-	}
-	if value, ok := ouo.mutation.AddedType(); ok {
-		_spec.AddField(organization.FieldType, field.TypeInt8, value)
+		_spec.SetField(organization.FieldType, field.TypeString, value)
 	}
 	if value, ok := ouo.mutation.Address(); ok {
 		_spec.SetField(organization.FieldAddress, field.TypeString, value)

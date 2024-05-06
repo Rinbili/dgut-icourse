@@ -65,7 +65,7 @@ func UpdatedAt(v int64) predicate.Organization {
 }
 
 // Type applies equality check predicate on the "type" field. It's identical to TypeEQ.
-func Type(v int8) predicate.Organization {
+func Type(v string) predicate.Organization {
 	return predicate.Organization(sql.FieldEQ(FieldType, v))
 }
 
@@ -155,43 +155,68 @@ func UpdatedAtLTE(v int64) predicate.Organization {
 }
 
 // TypeEQ applies the EQ predicate on the "type" field.
-func TypeEQ(v int8) predicate.Organization {
+func TypeEQ(v string) predicate.Organization {
 	return predicate.Organization(sql.FieldEQ(FieldType, v))
 }
 
 // TypeNEQ applies the NEQ predicate on the "type" field.
-func TypeNEQ(v int8) predicate.Organization {
+func TypeNEQ(v string) predicate.Organization {
 	return predicate.Organization(sql.FieldNEQ(FieldType, v))
 }
 
 // TypeIn applies the In predicate on the "type" field.
-func TypeIn(vs ...int8) predicate.Organization {
+func TypeIn(vs ...string) predicate.Organization {
 	return predicate.Organization(sql.FieldIn(FieldType, vs...))
 }
 
 // TypeNotIn applies the NotIn predicate on the "type" field.
-func TypeNotIn(vs ...int8) predicate.Organization {
+func TypeNotIn(vs ...string) predicate.Organization {
 	return predicate.Organization(sql.FieldNotIn(FieldType, vs...))
 }
 
 // TypeGT applies the GT predicate on the "type" field.
-func TypeGT(v int8) predicate.Organization {
+func TypeGT(v string) predicate.Organization {
 	return predicate.Organization(sql.FieldGT(FieldType, v))
 }
 
 // TypeGTE applies the GTE predicate on the "type" field.
-func TypeGTE(v int8) predicate.Organization {
+func TypeGTE(v string) predicate.Organization {
 	return predicate.Organization(sql.FieldGTE(FieldType, v))
 }
 
 // TypeLT applies the LT predicate on the "type" field.
-func TypeLT(v int8) predicate.Organization {
+func TypeLT(v string) predicate.Organization {
 	return predicate.Organization(sql.FieldLT(FieldType, v))
 }
 
 // TypeLTE applies the LTE predicate on the "type" field.
-func TypeLTE(v int8) predicate.Organization {
+func TypeLTE(v string) predicate.Organization {
 	return predicate.Organization(sql.FieldLTE(FieldType, v))
+}
+
+// TypeContains applies the Contains predicate on the "type" field.
+func TypeContains(v string) predicate.Organization {
+	return predicate.Organization(sql.FieldContains(FieldType, v))
+}
+
+// TypeHasPrefix applies the HasPrefix predicate on the "type" field.
+func TypeHasPrefix(v string) predicate.Organization {
+	return predicate.Organization(sql.FieldHasPrefix(FieldType, v))
+}
+
+// TypeHasSuffix applies the HasSuffix predicate on the "type" field.
+func TypeHasSuffix(v string) predicate.Organization {
+	return predicate.Organization(sql.FieldHasSuffix(FieldType, v))
+}
+
+// TypeEqualFold applies the EqualFold predicate on the "type" field.
+func TypeEqualFold(v string) predicate.Organization {
+	return predicate.Organization(sql.FieldEqualFold(FieldType, v))
+}
+
+// TypeContainsFold applies the ContainsFold predicate on the "type" field.
+func TypeContainsFold(v string) predicate.Organization {
+	return predicate.Organization(sql.FieldContainsFold(FieldType, v))
 }
 
 // AddressEQ applies the EQ predicate on the "address" field.

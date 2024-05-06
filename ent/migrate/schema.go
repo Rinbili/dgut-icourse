@@ -124,7 +124,7 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "created_at", Type: field.TypeInt64},
 		{Name: "updated_at", Type: field.TypeInt64},
-		{Name: "type", Type: field.TypeInt8},
+		{Name: "type", Type: field.TypeString},
 		{Name: "address", Type: field.TypeString},
 		{Name: "object_organization", Type: field.TypeUUID, Unique: true},
 	}

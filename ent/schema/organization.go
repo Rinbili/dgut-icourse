@@ -14,7 +14,7 @@ type Organization struct {
 // Fields of the Organization.
 func (Organization) Fields() []ent.Field {
 	return []ent.Field{
-		field.Int8("type").
+		field.String("type").
 			Comment("类型"),
 		field.String("address").
 			Comment("地址"),

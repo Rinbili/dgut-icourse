@@ -23,7 +23,7 @@ type Organization struct {
 	// 更新时间
 	UpdatedAt int64 `json:"updated_at,omitempty"`
 	// 类型
-	Type int8 `json:"type,omitempty"`
+	Type string `json:"type,omitempty"`
 	// 地址
 	Address string `json:"address,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -58,9 +58,9 @@ func (*Organization) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case organization.FieldID, organization.FieldCreatedAt, organization.FieldUpdatedAt, organization.FieldType:
+		case organization.FieldID, organization.FieldCreatedAt, organization.FieldUpdatedAt:
 			values[i] = new(sql.NullInt64)
-		case organization.FieldAddress:
+		case organization.FieldType, organization.FieldAddress:
 			values[i] = new(sql.NullString)
 		case organization.ForeignKeys[0]: // object_organization
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
@@ -98,10 +98,10 @@ func (o *Organization) assignValues(columns []string, values []any) error {
 				o.UpdatedAt = value.Int64
 			}
 		case organization.FieldType:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field type", values[i])
 			} else if value.Valid {
-				o.Type = int8(value.Int64)
+				o.Type = value.String
 			}
 		case organization.FieldAddress:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -164,7 +164,7 @@ func (o *Organization) String() string {
 	builder.WriteString(fmt.Sprintf("%v", o.UpdatedAt))
 	builder.WriteString(", ")
 	builder.WriteString("type=")
-	builder.WriteString(fmt.Sprintf("%v", o.Type))
+	builder.WriteString(o.Type)
 	builder.WriteString(", ")
 	builder.WriteString("address=")
 	builder.WriteString(o.Address)

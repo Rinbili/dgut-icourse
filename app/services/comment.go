@@ -2,9 +2,11 @@ package services
 
 import (
 	"context"
+	"dgut-icourse/app/utils"
 	"dgut-icourse/ent"
 	"dgut-icourse/ent/comment"
 	"dgut-icourse/ent/object"
+	"dgut-icourse/ent/user"
 	"entgo.io/ent/dialect/sql"
 	"fmt"
 	"github.com/google/uuid"
@@ -17,35 +19,43 @@ import (
 // @return *ent.Comment: 评论信息
 // @return error: err
 func CreateComment(ctx context.Context, source ent.Comment) (comment *ent.Comment, err error) {
-	if user := ctx.Value("user").(*ent.User); user == nil {
+	if u := ctx.Value("user").(*ent.User); u == nil {
 		return nil, fmt.Errorf("invalid user")
 	} else {
 		if err = WithTx(ctx, Client, func(tx *ent.Tx) error {
 			var err error
-			if comment, err = tx.Comment.Create().
+
+			cc := tx.Comment.Create().
 				SetScore(source.Score).
 				SetContent(source.Content).
-				SetObjectID(source.Edges.Object.ID).
-				SetAuthorID(user.ID).
-				Save(ctx); err != nil {
-				return err
-			}
-			obj, _ := tx.Object.Get(ctx, source.Edges.Object.ID)
-			switch obj.Type {
-			// TODO: Add other cases
-			case 2:
-				if _, err = tx.CourseComment.Create().
-					SetDifficulty(source.Edges.CourseComment.Difficulty).
-					SetMark(source.Edges.CourseComment.Mark).
-					SetQuality(source.Edges.CourseComment.Quality).
-					SetWorkload(source.Edges.CourseComment.Workload).
-					SetComment(comment).
-					Save(ctx); err != nil {
+				SetAuthorID(u.ID)
+			if source.Edges.Object != nil {
+				if comment, err = cc.SetObjectID(source.Edges.Object.ID).Save(ctx); err != nil {
 					return err
 				}
-				break
-			default:
-				return fmt.Errorf("invalid object type: %d", obj.Type)
+				obj, _ := tx.Object.Get(ctx, source.Edges.Object.ID)
+				switch obj.Type {
+				// TODO: Add other cases
+				case 2:
+					if _, err = tx.CourseComment.Create().
+						SetDifficulty(source.Edges.CourseComment.Difficulty).
+						SetMark(source.Edges.CourseComment.Mark).
+						SetQuality(source.Edges.CourseComment.Quality).
+						SetWorkload(source.Edges.CourseComment.Workload).
+						SetComment(comment).
+						Save(ctx); err != nil {
+						return err
+					}
+					break
+				default:
+					return fmt.Errorf("invalid object type: %d", obj.Type)
+				}
+			} else if source.Edges.Parent != nil {
+				if comment, err = cc.SetParentID(source.Edges.Parent.ID).Save(ctx); err != nil {
+					return err
+				}
+			} else {
+				return fmt.Errorf("invalid comment")
 			}
 			return nil
 		}); err != nil {
@@ -84,6 +94,21 @@ func GetMyComments(ctx context.Context) (comments []*ent.Comment, err error) {
 	return u.QueryComments().WithParent().WithObject().All(ctx)
 }
 
+func GetCommentsByCommentUUID(ctx context.Context, cidStr string) (comments []*ent.Comment, err error) {
+	if cid, err := uuid.Parse(cidStr); err != nil {
+		return nil, err
+	} else {
+		return Client.Comment.Query().
+			Where(comment.HasParentWith(comment.ID(cid))).
+			WithAuthor().
+			WithLikedUsers().
+			WithCourseComment().
+			WithObject().
+			WithChildren().
+			All(ctx)
+	}
+}
+
 // GetCommentsByObjectUUID
 // @Description: 通过OID获取评论列表
 // @param ctx: context.Context
@@ -99,6 +124,7 @@ func GetCommentsByObjectUUID(ctx context.Context, oidStr string) (comments []*en
 			WithAuthor().
 			WithLikedUsers().
 			WithCourseComment().
+			WithChildren().
 			All(ctx); err != nil {
 			return nil, err
 		}
@@ -111,21 +137,21 @@ func GetCommentsByObjectUUID(ctx context.Context, oidStr string) (comments []*en
 // @param ctx: context.Context
 // @param offset: int
 // @param limit: int
-func GetCommentsByTime(ctx context.Context, offset int, limit int) (comments []*ent.Comment, err error) {
+func GetCommentsByTime(ctx context.Context, paging utils.Paging) (comments []*ent.Comment, err error) {
 	return Client.Comment.Query().
 		Where(comment.HasObject()).
 		Order(comment.ByCreatedAt(sql.OrderDesc())).
-		Offset(offset).
+		Offset(paging.Offset()).
 		WithAuthor().
 		WithLikedUsers().
 		WithCourseComment().
 		WithObject().
-		Limit(limit).
+		Limit(paging.Limit()).
 		All(ctx)
 }
 
 func UpdateComment(ctx context.Context, source ent.Comment) (c *ent.Comment, err error) {
-	if user := ctx.Value("user").(*ent.User); user == nil {
+	if u := ctx.Value("user").(*ent.User); u == nil {
 		return nil, fmt.Errorf("invalid user")
 	} else {
 		if err = WithTx(ctx, Client, func(tx *ent.Tx) (err error) {
@@ -138,7 +164,7 @@ func UpdateComment(ctx context.Context, source ent.Comment) (c *ent.Comment, err
 			if err != nil {
 				return err
 			}
-			if c.Edges.Author.ID != user.ID {
+			if c.Edges.Author.ID != u.ID {
 				return fmt.Errorf("invalid user")
 			} else {
 				switch c.Edges.Object.Type {
@@ -176,14 +202,38 @@ func UpdateComment(ctx context.Context, source ent.Comment) (c *ent.Comment, err
 	return
 }
 
+func GetCommentLikeCountAndDidILike(ctx context.Context, cidStr string) (count int, doesILike bool, err error) {
+	id, err := uuid.Parse(cidStr)
+	if err != nil {
+		return 0, false, err
+	}
+	u := ctx.Value("user").(*ent.User)
+	count = Client.Comment.Query().
+		Where(comment.ID(uuid.MustParse(cidStr))).
+		QueryLikedUsers().
+		CountX(ctx)
+	if u == nil {
+		return count, false, nil
+	} else {
+		if doesILike, err = Client.Comment.Query().
+			Where(comment.ID(id)).
+			QueryLikedUsers().
+			Where(user.ID(u.ID)).
+			Exist(ctx); err != nil {
+			return 0, false, err
+		}
+		return count, doesILike, nil
+	}
+}
+
 // LikeComment
 // @Description: 点赞评论
 // @param ctx: context.Context
 // @param cidStr: string
 // @return error: err
 func LikeComment(ctx context.Context, cidStr string) (err error) {
-	user := ctx.Value("user").(*ent.User)
-	if user == nil {
+	u := ctx.Value("user").(*ent.User)
+	if u == nil {
 		return fmt.Errorf("invalid user")
 	}
 	if id, err := uuid.Parse(cidStr); err != nil {
@@ -192,7 +242,7 @@ func LikeComment(ctx context.Context, cidStr string) (err error) {
 		return WithTx(ctx, Client, func(tx *ent.Tx) error {
 			if _, err := tx.Comment.Update().
 				Where(comment.ID(id)).
-				AddLikedUsers(user).
+				AddLikedUsers(u).
 				Save(ctx); err != nil {
 				return err
 			}
@@ -207,8 +257,8 @@ func LikeComment(ctx context.Context, cidStr string) (err error) {
 // @param cidStr: string
 // @return error: err
 func UnlikeComment(ctx context.Context, cidStr string) (err error) {
-	user := ctx.Value("user").(*ent.User)
-	if user == nil {
+	u := ctx.Value("user").(*ent.User)
+	if u == nil {
 		return fmt.Errorf("invalid user")
 	}
 	if id, err := uuid.Parse(cidStr); err != nil {
@@ -217,7 +267,7 @@ func UnlikeComment(ctx context.Context, cidStr string) (err error) {
 		return WithTx(ctx, Client, func(tx *ent.Tx) error {
 			if _, err := tx.Comment.Update().
 				Where(comment.ID(id)).
-				RemoveLikedUsers(user).
+				RemoveLikedUsers(u).
 				Save(ctx); err != nil {
 				return err
 			}
