@@ -36,6 +36,10 @@ func CreateComment(ctx context.Context, source ent.Comment) (comment *ent.Commen
 				obj, _ := tx.Object.Get(ctx, source.Edges.Object.ID)
 				switch obj.Type {
 				// TODO: Add other cases
+				case 0:
+					break
+				case 1:
+					break
 				case 2:
 					if _, err = tx.CourseComment.Create().
 						SetDifficulty(source.Edges.CourseComment.Difficulty).
@@ -46,6 +50,8 @@ func CreateComment(ctx context.Context, source ent.Comment) (comment *ent.Commen
 						Save(ctx); err != nil {
 						return err
 					}
+					break
+				case 3:
 					break
 				default:
 					return fmt.Errorf("invalid object type: %d", obj.Type)
@@ -168,6 +174,10 @@ func UpdateComment(ctx context.Context, source ent.Comment) (c *ent.Comment, err
 				return fmt.Errorf("invalid user")
 			} else {
 				switch c.Edges.Object.Type {
+				case 0:
+					break
+				case 1:
+					break
 				case 2:
 					uo := tx.CourseComment.UpdateOne(c.Edges.CourseComment)
 					if source.Edges.CourseComment != nil {
@@ -185,6 +195,8 @@ func UpdateComment(ctx context.Context, source ent.Comment) (c *ent.Comment, err
 						}
 					}
 					_, err = uo.Save(ctx)
+					break
+				case 3:
 					break
 				default:
 					return fmt.Errorf("invalid object type: %d", c.Edges.Object.Type)
